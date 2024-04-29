@@ -425,9 +425,9 @@ function getYoutubeVideoData() {
     return videoData;
 }
 
-function hideVideoIfKeywordMatch(keywords, stringToCheck, debugMessage) {
+function hideVideoIfKeywordMatch(keywords, stringToCheck, debugMessage,videoContainer) {
     if (keywords.some(keyword => stringToCheck.includes(keyword))) {
-        videoInfo.videoContainer.classList.add('BT-KEYWORD-HIDDEN');
+        videoContainer.classList.add('BT-KEYWORD-HIDDEN');
         debug(debugMessage);
         return true;
     }
@@ -451,10 +451,10 @@ function processRules() {
     const hideShorts = GMCConfig.BT_HIDE_SHORTS ? GMCConfig.BT_HIDE_SHORTS : false;
     const dimWatched = GMCConfig.BT_DIM_WATCHED ? GMCConfig.BT_DIM_WATCHED : false;
     const hideWatched = GMCConfig.BT_HIDE_WATCHED ? GMCConfig.BT_HIDE_WATCHED : false;
-    const hideChannelsKeywords = GMCConfig.BT_HIDE_CHANNELS_KEYWORDS ? GMCConfig.BT_HIDE_CHANNELS_KEYWORDS.split(",") : [];
-    const hideTitleVideosKeywords = GMCConfig.BT_HIDE_VIDEOS_TITLE_KEYWORDS ? GMCConfig.BT_HIDE_VIDEOS_TITLE_KEYWORDS.split(",") : [];
+    const hideChannelsKeywords = GMCConfig.BT_HIDE_CHANNELS_KEYWORDS ? GMCConfig.BT_HIDE_CHANNELS_KEYWORDS.toLowerCase().split(",") : [];
+    const hideTitleVideosKeywords = GMCConfig.BT_HIDE_VIDEOS_TITLE_KEYWORDS ? GMCConfig.BT_HIDE_VIDEOS_TITLE_KEYWORDS.toLowerCase().split(",") : [];
     const hiddenThresholdViews = GMCConfig.BT_HIDE_THRESHOLD_VIEWS ? GMCConfig.BT_HIDE_THRESHOLD_VIEWS : 0;
-    const hideVideosKeywordsDesc = GMCConfig.BT_HIDE_VIDEOS_KEYWORDS_DESC ? GMCConfig.BT_HIDE_VIDEOS_KEYWORDS_DESC.split(",") : [];
+    const hideVideosKeywordsDesc = GMCConfig.BT_HIDE_VIDEOS_KEYWORDS_DESC ? GMCConfig.BT_HIDE_VIDEOS_KEYWORDS_DESC.toLowerCase().split(",") : [];
     const hideThresholdLength = GMCConfig.BT_HIDE_THRESHOLD_LENGTH ? GMCConfig.BT_HIDE_THRESHOLD_LENGTH : 0;
 
     // Get video data
@@ -494,13 +494,13 @@ function processRules() {
             return;
         }
 
-        if (hideVideoIfKeywordMatch(hideChannelsKeywords, videoInfo.channelName, 'Hiding video with keyword in channel name')) return;
-        if (hideVideoIfKeywordMatch(hideTitleVideosKeywords, videoInfo.title, 'Hiding video with keyword in title')) return;
+        if (hideVideoIfKeywordMatch(hideChannelsKeywords, videoInfo.channelName.toLowerCase(), 'Hiding video with keyword in channel name',videoInfo.videoContainer)) return;
+        if (hideVideoIfKeywordMatch(hideTitleVideosKeywords, videoInfo.title.toLowerCase(), 'Hiding video with keyword in title',videoInfo.videoContainer)) return;
         
         if (hideVideosKeywordsDesc.length > 0) {
             try {
                 const videoDescription = fetchVideoDescription(videoInfo.videoId);
-                if (videoDescription && hideVideoIfKeywordMatch(hideVideosKeywordsDesc, videoDescription, 'Hiding video with keyword in description')) return;
+                if (videoDescription && hideVideoIfKeywordMatch(hideVideosKeywordsDesc, videoDescription.toLowerCase(), 'Hiding video with keyword in description',videoInfo.videoContainer)) return;
             } catch (error) {
                 console.error('Failed to fetch video description:', error);
             }
