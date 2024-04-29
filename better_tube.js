@@ -28,8 +28,6 @@ const style = `
 
 .BT-BUTTONS {
 	background: transparent;
-	border: 1px solid var(--ytd-searchbox-legacy-border-color);
-    border-radius: 40px;
     display: flex;
     gap: 5px;
 	margin: 0 20px;
@@ -77,6 +75,49 @@ const style = `
 `;
 GMC_ID = 'betterTubeSettings';
 const DEBUG = false;
+
+const IS_MOBILE = window.innerWidth < 1024;
+const BUTTON_AREA_DESKTOP_QUERY = '#container #end #buttons';
+const BUTTON_AREA_MOBILE_QUERY = 'div.mobile-topbar-header-content.non-search-mode.cbox';
+const BUTTON_AREA_QUERY = IS_MOBILE ? BUTTON_AREA_MOBILE_QUERY : BUTTON_AREA_DESKTOP_QUERY;
+
+const HOMPAGE_VIDEO_CONTAINER_QUERY_DESKTOP = 'div#dismissible.style-scope.ytd-rich-grid-media';
+const WATCH_PAGE_VIDEO_CONTAINER_QUERY_DESKTOP = 'div#dismissible.style-scope.ytd-compact-video-renderer';
+
+const HOMPAGE_VIDEO_CONTAINER_QUERY_MOBILE = 'ytm-rich-item-renderer.fresh-feeds-dismissals.rich-item-single-column';
+const WATCH_PAGE_VIDEO_CONTAINER_QUERY_MOBILE = 'ytm-video-with-context-renderer.item.adaptive-feed-item';
+
+const HOMEPAGE_VIDEO_CONTAINER_QUERY = IS_MOBILE ? HOMPAGE_VIDEO_CONTAINER_QUERY_MOBILE : HOMPAGE_VIDEO_CONTAINER_QUERY_DESKTOP;
+const WATCH_PAGE_VIDEO_CONTAINER_QUERY = IS_MOBILE ? WATCH_PAGE_VIDEO_CONTAINER_QUERY_MOBILE : WATCH_PAGE_VIDEO_CONTAINER_QUERY_DESKTOP;
+
+
+const VIDEO_LINK_QUERY = 'a[href^="/watch?v="]';
+
+const VIDEO_TITLE_QUERY_DESKTOP = '#video-title';
+const VIDEO_TITLE_QUERY_MOBILE = 'span.yt-core-attributed-string';
+const VIDEO_TITLE_QUERY = IS_MOBILE ? VIDEO_TITLE_QUERY_MOBILE : VIDEO_TITLE_QUERY_DESKTOP;
+
+const TIME_LENGTH_QUERY_DESKTOP = '#time-status';
+const TIME_LENGTH_QUERY_MOBILE = 'div.badge-shape-wiz__text';
+const TIME_LENGTH_QUERY = IS_MOBILE ? TIME_LENGTH_QUERY_MOBILE : TIME_LENGTH_QUERY_DESKTOP;
+
+const VIEWS_QUERY_DESKTOP = '.inline-metadata-item';
+const VIEWS_QUERY_MOBILE = '[aria-label$=" views"]';
+const VIEWS_QUERY = IS_MOBILE ? VIEWS_QUERY_MOBILE : VIEWS_QUERY_DESKTOP
+
+const CHANNEL_NAME_QUERY_WATCH_DESKTOP = 'div:nth-child(1) > ytd-channel-name:nth-child(1) > div:nth-child(1) > div:nth-child(1) > yt-formatted-string';
+const CHANNEL_NAME_QUERY_WATCH_MOBILE = 'ytm-badge-and-byline-renderer:nth-child(1) > span:nth-child(1) > span';
+const CHANNEL_NAME_QUERY_WATCH = IS_MOBILE ? CHANNEL_NAME_QUERY_WATCH_MOBILE : CHANNEL_NAME_QUERY_WATCH_DESKTOP;
+
+const CHANNEL_NAME_QUERY_HOMEPAGE_DESKTOP = 'div:nth-child(1) > ytd-channel-name:nth-child(1) > div:nth-child(1) > div:nth-child(1) > yt-formatted-string > a';
+const CHANNEL_NAME_QUERY_HOMEPAGE_MOBILE = 'ytm-badge-and-byline-renderer:nth-child(1) > span:nth-child(1) > span';
+const CHANNEL_NAME_QUERY_HOMEPAGE = IS_MOBILE ? CHANNEL_NAME_QUERY_HOMEPAGE_MOBILE : CHANNEL_NAME_QUERY_HOMEPAGE_DESKTOP;
+
+const PROGRESS_QUERY_DESKTOP = '#progress';
+const PROGRESS_QUERY_MOBILE = 'div.thumbnail-overlay-resume-playback-progress';
+const PROGRESS_QUERY = IS_MOBILE ? PROGRESS_QUERY_MOBILE : PROGRESS_QUERY_DESKTOP;
+
+
 //debug print functions
 const debug = (...msgs) => {
     // eslint-disable-next-line no-console
@@ -111,7 +152,7 @@ const debounce = function (func, wait, immediate) {
 };
 function findButtonAreaTarget() {
     // Button will be injected into the main header menu
-    return document.querySelector('#container #end #buttons');
+    return document.querySelector(BUTTON_AREA_QUERY);
 };
 
 
@@ -298,9 +339,9 @@ function getYoutubeVideoData() {
 
     // youtube video container on the homepage
     // div( id="dismissible",  class="style-scope ytd-rich-grid-media" )
-    var videoContainers = document.querySelectorAll('div#dismissible.style-scope.ytd-rich-grid-media');
+    var videoContainers = document.querySelectorAll(HOMEPAGE_VIDEO_CONTAINER_QUERY);
     //when watching a video
-    var videoContainersCompact = document.querySelectorAll('div#dismissible.style-scope.ytd-compact-video-renderer');
+    var videoContainersCompact = document.querySelectorAll(WATCH_PAGE_VIDEO_CONTAINER_QUERY);
 
     videoContainers = Array.from(videoContainers).concat(Array.from(videoContainersCompact));
 
@@ -316,40 +357,70 @@ function getYoutubeVideoData() {
         || videoContainer.classList.contains('BT-WATCHED-DIMMED');
         
         // Extract videoId from the href attribute of the link
-        const videoLink = videoContainer.querySelector('a[href^="/watch?v="]');
-        videoInfo.videoId = videoLink ? videoLink.href.split('=')[1] : "";
+        const videoLinkElement = videoContainer.querySelector(VIDEO_LINK_QUERY);
+        videoInfo.videoId = videoLinkElement ? videoLinkElement.href.split('=')[1] : "";
+        if (videoInfo.videoId.includes("@list")) {
+            debug('Skipping playlist video');
+            return;
+        }
 
-        const videoTitleElement = videoContainer.querySelector('#video-title');
-        videoInfo.title = videoTitleElement ? videoTitleElement.textContent : "";
+        const videoTitleElement = videoContainer.querySelector(VIDEO_TITLE_QUERY);
+        videoInfo.title = videoTitleElement ? videoTitleElement.textContent.trim() : "";
 
-        const progressElement = videoContainer.querySelector('#progress');
+        const progressElement = videoContainer.querySelector(PROGRESS_QUERY);
         videoInfo.progress = progressElement ? parseInt(progressElement.style.width, 10) : 0;
 
-        const timeStatusElement = videoContainer.querySelector('#time-status');
+        const timeStatusElement = videoContainer.querySelector(TIME_LENGTH_QUERY);
         videoInfo.timeLength = timeStatusElement ? convertYtTimeToSeconds(timeStatusElement.textContent) : 0;
 
 
         // Extract views from the text content of the views element
-        const viewsElement = videoContainer.querySelector('.inline-metadata-item');
+        const viewsElement = videoContainer.querySelector(VIEWS_QUERY);
         // go from "2.1M views" to "2.1M" to 2100000 
         videoInfo.views = viewsElement ? convertViewsToNumber(viewsElement.textContent.split(" ")[0]) : 0;
 
-        // Extract channel name and handle from the text content and href attribute of the channel name element
-        let anchorTag = videoContainer.querySelector('a.yt-simple-endpoint.style-scope.yt-formatted-string');
+        
 
-        // Extract the channel name and handle
-        if (!anchorTag) {
-            anchorTag = videoContainer.querySelector('yt-formatted-string.style-scope.ytd-channel-name');
-            if (anchorTag) {
-                videoInfo.channelName = anchorTag.innerText;
-                videoData.push(videoInfo);
-            }
-            return;
+        // channel name
+        var channelNameElement;
+        if (determineYoutubeSection() === 'watch') {
+            channelNameElement = videoContainer.querySelector(CHANNEL_NAME_QUERY_WATCH);
+            videoInfo.channelName = channelNameElement ? channelNameElement.textContent : "";
+        } else {
+            channelNameElement = videoContainer.querySelector(CHANNEL_NAME_QUERY_HOMEPAGE);
+            videoInfo.channelName = channelNameElement ? channelNameElement.textContent : "";
         }
-        videoInfo.channelHandle = anchorTag.getAttribute('href').split('/@')[1];
+
+        // check if data is incomplete
+        if (videoInfo.videoId === null 
+            || videoInfo.title === null
+            || videoInfo.channelName === null
+            || videoInfo.progress === null
+            || videoInfo.timeLength === null
+            || videoInfo.views === null) {
+            debug('Incomplete video data(DATA):', videoInfo);
+        }
+
+        // check if data element are null
+        if (videoLinkElement === null 
+            || videoTitleElement === null 
+            || timeStatusElement === null 
+            || viewsElement === null 
+            || channelNameElement === null) { 
+            debug('Incomplete video data(ELEMENT):', videoInfo);
+
+            debug('[Incomplete] videoLinkElement:', videoLinkElement);
+            debug('[Incomplete] videoTitleElement:', videoTitleElement);
+            debug('[Incomplete] timeStatusElement:', timeStatusElement);
+            debug('[Incomplete] viewsElement:', viewsElement);
+            debug('[Incomplete] channelNameElement:', channelNameElement);
+            }
+        
+
 
         videoData.push(videoInfo);
     });
+    
 
     return videoData;
 }
@@ -532,7 +603,10 @@ function init() {
     const renderButtons = function () {
         // Find button area target
         const target = findButtonAreaTarget();
-        if (!target) return;
+        if (!target) {
+            debug('Failed to find button area target');            
+            return
+        };
 
         // Did we already render the buttons?
         const existingButtons = document.querySelector('.BT-BUTTONS');
@@ -569,10 +643,10 @@ function init() {
 
         // Insert buttons into DOM
         if (existingButtons) {
-            target.parentNode.replaceChild(buttonArea, existingButtons);
+            target.replaceChild(buttonArea, existingButtons);
             debug('Re-rendered menu buttons');
         } else {
-            target.parentNode.insertBefore(buttonArea, target);
+            target.insertBefore(buttonArea,target.firstChild);
             debug('Rendered menu buttons');
         }
     };
